@@ -22,7 +22,8 @@ import SwiftUI
 /// `OCWhatsNewToggle.set` が呼ばれる。また確定と同時に `store`（既定は
 /// `OCUserDefaultsWhatsNewVersionStore`）へ `items` 内の最新バージョンが既読として保存される
 public struct OCWhatsNewView: View {
-    @StateObject private var viewModel: OCWhatsNewViewModel
+    @StateObject private var viewModel = OCWhatsNewViewModel()
+    private let items: [OCWhatsNewItem]
     @Binding var isPresented: Bool
     private let store: OCWhatsNewVersionStoring
     private let texts: OCWhatsNewTexts
@@ -35,7 +36,7 @@ public struct OCWhatsNewView: View {
         texts: OCWhatsNewTexts = OCWhatsNewTexts(),
         style: OCWhatsNewStyle = OCWhatsNewStyle()
     ) {
-        _viewModel = StateObject(wrappedValue: OCWhatsNewViewModel(items: items))
+        self.items = items
         _isPresented = isPresented
         self.store = store
         self.texts = texts
@@ -54,12 +55,12 @@ public struct OCWhatsNewView: View {
                     .padding(.bottom, 12)
 
                 TabView(selection: $viewModel.currentIndex) {
-                    ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         pageView(item)
                             .tag(index)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: viewModel.items.count > 1 ? .always : .never))
+                .tabViewStyle(.page(indexDisplayMode: items.count > 1 ? .always : .never))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
 
                 bottomButton
@@ -68,6 +69,7 @@ public struct OCWhatsNewView: View {
             }
         }
         .interactiveDismissDisabled()
+        .onAppear { viewModel.prepare(items: items) }
     }
 
     private var titleView: some View {
@@ -133,14 +135,14 @@ public struct OCWhatsNewView: View {
 
     private var bottomButton: some View {
         Button {
-            if viewModel.isLastPage {
-                viewModel.commit(store: store)
+            if viewModel.isLastPage(pageCount: items.count) {
+                viewModel.commit(items: items, store: store)
                 isPresented = false
             } else {
-                withAnimation { viewModel.advance() }
+                withAnimation { viewModel.advance(pageCount: items.count) }
             }
         } label: {
-            Text(viewModel.isLastPage ? texts.startButton : texts.nextButton)
+            Text(viewModel.isLastPage(pageCount: items.count) ? texts.startButton : texts.nextButton)
                 .font(style.headlineFont)
                 .foregroundStyle(style.accentColor)
                 .frame(maxWidth: .infinity)

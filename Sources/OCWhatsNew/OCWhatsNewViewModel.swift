@@ -11,12 +11,18 @@ import SwiftUI
 
 @MainActor
 final class OCWhatsNewViewModel: ObservableObject {
-    let items: [OCWhatsNewItem]
     @Published var currentIndex: Int = 0
-    @Published var toggleStates: [UUID: Bool]
+    @Published var toggleStates: [UUID: Bool] = [:]
+    private var didPrepare = false
 
-    init(items: [OCWhatsNewItem]) {
-        self.items = items
+    /// items のトグル初期状態を取り込む（初回のみ）。
+    ///
+    /// items 自体は View 側が `let` として保持する。ViewModel（`@StateObject`）に items を
+    /// 持たせると、View が空 items で先に評価された場合に初期値がキャプチャされ、後から
+    /// items を渡しても反映されない（＝ページが空になる）ため、ここでは可変な UI 状態だけを持つ
+    func prepare(items: [OCWhatsNewItem]) {
+        guard !didPrepare else { return }
+        didPrepare = true
         var states: [UUID: Bool] = [:]
         for item in items {
             if let toggle = item.toggle {
@@ -26,8 +32,8 @@ final class OCWhatsNewViewModel: ObservableObject {
         toggleStates = states
     }
 
-    var isLastPage: Bool {
-        currentIndex >= items.count - 1
+    func isLastPage(pageCount: Int) -> Bool {
+        currentIndex >= pageCount - 1
     }
 
     func toggleBinding(for id: UUID) -> Binding<Bool> {
@@ -37,13 +43,13 @@ final class OCWhatsNewViewModel: ObservableObject {
         )
     }
 
-    func advance() {
-        guard !isLastPage else { return }
+    func advance(pageCount: Int) {
+        guard !isLastPage(pageCount: pageCount) else { return }
         currentIndex += 1
     }
 
     /// シート確定時に各ページのトグル選択を保存し、最新バージョンを既読にする
-    func commit(store: OCWhatsNewVersionStoring) {
+    func commit(items: [OCWhatsNewItem], store: OCWhatsNewVersionStoring) {
         for item in items {
             if let toggle = item.toggle, let value = toggleStates[item.id] {
                 toggle.set(value)

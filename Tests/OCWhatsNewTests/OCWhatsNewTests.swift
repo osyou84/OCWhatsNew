@@ -161,25 +161,26 @@ struct OCWhatsNewViewModelTests {
     @Test("isLastPage は最後のページで true になる")
     func isLastPage() {
         let items = ["1.0.0", "1.1.0"].map { makeItem(version: $0) }
-        let viewModel = OCWhatsNewViewModel(items: items)
-        #expect(viewModel.isLastPage == false)
-        viewModel.advance()
-        #expect(viewModel.isLastPage == true)
+        let viewModel = OCWhatsNewViewModel()
+        #expect(viewModel.isLastPage(pageCount: items.count) == false)
+        viewModel.advance(pageCount: items.count)
+        #expect(viewModel.isLastPage(pageCount: items.count) == true)
     }
 
     @Test("advance は最終ページを超えて進まない")
     func advanceStopsAtLastPage() {
         let items = ["1.0.0"].map { makeItem(version: $0) }
-        let viewModel = OCWhatsNewViewModel(items: items)
-        viewModel.advance()
+        let viewModel = OCWhatsNewViewModel()
+        viewModel.advance(pageCount: items.count)
         #expect(viewModel.currentIndex == 0)
     }
 
-    @Test("初期化時に各トグルの現在値を取得する")
+    @Test("prepare で各トグルの現在値を取得する")
     func initializesToggleStatesFromGetter() {
         let toggle = OCWhatsNewToggle(title: "toggle", get: { true }, set: { _ in })
         let item = makeItem(version: "1.0.0", toggle: toggle)
-        let viewModel = OCWhatsNewViewModel(items: [item])
+        let viewModel = OCWhatsNewViewModel()
+        viewModel.prepare(items: [item])
         #expect(viewModel.toggleBinding(for: item.id).wrappedValue == true)
     }
 
@@ -188,14 +189,15 @@ struct OCWhatsNewViewModelTests {
         let savedToggleValue = ResultBox<Bool>()
         let toggle = OCWhatsNewToggle(title: "toggle", get: { false }, set: { savedToggleValue.value = $0 })
         let item = makeItem(version: "1.2.0", toggle: toggle)
-        let viewModel = OCWhatsNewViewModel(items: [item])
+        let viewModel = OCWhatsNewViewModel()
+        viewModel.prepare(items: [item])
         viewModel.toggleBinding(for: item.id).wrappedValue = true
 
         let store = OCUserDefaultsWhatsNewVersionStore(
             userDefaults: UserDefaults(suiteName: "OCWhatsNewTests.commit")!,
             key: "test.commit.lastSeenVersion"
         )
-        viewModel.commit(store: store)
+        viewModel.commit(items: [item], store: store)
 
         #expect(savedToggleValue.value == true)
         #expect(store.lastSeenVersion == "1.2.0")
