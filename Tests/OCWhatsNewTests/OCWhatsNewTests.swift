@@ -48,6 +48,64 @@ struct OCWhatsNewTests {
         let unseen = OCWhatsNew.unseenItems(in: items, lastSeenVersion: "1.1.0")
         #expect(unseen.isEmpty)
     }
+
+    @Test("unseenItems は初回起動でも showOnFirstLaunch が true なら全件を返す")
+    func unseenItemsShowsOnFirstLaunchWhenEnabled() {
+        let items = ["1.0.0", "1.1.0"].map(makeItem)
+        let unseen = OCWhatsNew.unseenItems(in: items, lastSeenVersion: nil, showOnFirstLaunch: true)
+        #expect(unseen.count == 2)
+    }
+
+    @Test("unseenItems は初回起動かつ showOnFirstLaunch が false なら空を返す")
+    func unseenItemsHidesOnFirstLaunchWhenDisabled() {
+        let items = ["1.0.0", "1.1.0"].map(makeItem)
+        let unseen = OCWhatsNew.unseenItems(in: items, lastSeenVersion: nil, showOnFirstLaunch: false)
+        #expect(unseen.isEmpty)
+    }
+}
+
+// MARK: - OCWhatsNew.itemsToPresent
+
+@Suite("OCWhatsNew.itemsToPresent")
+struct OCWhatsNewItemsToPresentTests {
+    private func makeItem(_ version: String) -> OCWhatsNewItem {
+        OCWhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail")
+    }
+
+    private func makeStore(suiteName: String) -> OCUserDefaultsWhatsNewVersionStore {
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return OCUserDefaultsWhatsNewVersionStore(userDefaults: defaults, key: "test.lastSeenVersion")
+    }
+
+    @Test("初回起動かつ showOnFirstLaunch が false のとき、空を返し最新を既読として記録する")
+    func firstLaunchHiddenBaselinesStore() {
+        let store = makeStore(suiteName: "OCWhatsNewTests.itemsToPresent.firstHidden")
+        let items = ["1.0.0", "1.1.0"].map(makeItem)
+        let toPresent = OCWhatsNew.itemsToPresent(in: items, store: store, showOnFirstLaunch: false)
+        #expect(toPresent.isEmpty)
+        #expect(store.lastSeenVersion == "1.1.0")
+    }
+
+    @Test("初回起動で既読を記録したあと、アップデートで追加された新機能だけが表示される")
+    func afterBaselineOnlyNewItemsAppear() {
+        let store = makeStore(suiteName: "OCWhatsNewTests.itemsToPresent.afterBaseline")
+        // 初回起動: 1.1.0 までのカタログを静かに既読化
+        _ = OCWhatsNew.itemsToPresent(in: ["1.0.0", "1.1.0"].map(makeItem), store: store, showOnFirstLaunch: false)
+        // アップデート後: 2.0.0 が追加された
+        let toPresent = OCWhatsNew.itemsToPresent(in: ["1.0.0", "1.1.0", "2.0.0"].map(makeItem), store: store, showOnFirstLaunch: false)
+        #expect(toPresent.map(\.version) == ["2.0.0"])
+    }
+
+    @Test("初回起動でも showOnFirstLaunch が true なら全件を表示する")
+    func firstLaunchShownReturnsAll() {
+        let store = makeStore(suiteName: "OCWhatsNewTests.itemsToPresent.firstShown")
+        let items = ["1.0.0", "1.1.0"].map(makeItem)
+        let toPresent = OCWhatsNew.itemsToPresent(in: items, store: store, showOnFirstLaunch: true)
+        #expect(toPresent.count == 2)
+        // 表示する場合はここでは既読化しない（確定は OCWhatsNewViewModel.commit が担う）
+        #expect(store.lastSeenVersion == nil)
+    }
 }
 
 // MARK: - OCUserDefaultsWhatsNewVersionStore

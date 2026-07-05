@@ -76,9 +76,10 @@ enum MyAppWhatsNewCatalog {
 import OCWhatsNew
 
 let store = OCUserDefaultsWhatsNewVersionStore()
-let unseenItems = OCWhatsNew.unseenItems(
+let unseenItems = OCWhatsNew.itemsToPresent(
     in: MyAppWhatsNewCatalog.allItems,
-    lastSeenVersion: store.lastSeenVersion
+    store: store,
+    showOnFirstLaunch: false   // インストール直後のユーザーには表示しない（既定）
 )
 
 if !unseenItems.isEmpty {
@@ -86,10 +87,22 @@ if !unseenItems.isEmpty {
 }
 ```
 
-新規ユーザーには過去のお知らせを見せず最新版を既読扱いにしたい、といったアプリ固有の分岐は
-`OCWhatsNew.latestVersion(in:)` を使って呼び出し側で組み立ててください。
+#### 初回起動のユーザーへの表示
+
+`showOnFirstLaunch`（既定 `false`）で、インストール直後＝まだ一度も What's New を見せていない
+ユーザーへの表示可否を切り替えられます。
+
+- `false`: 初回起動では **何も表示せず**、その時点のカタログ最新バージョンを既読として `store` に記録します。
+  これによりインストール直後は静かにしておきつつ、次回以降のアップデートでは
+  **新しく追加された機能だけ** が表示されます。
+- `true`: 初回起動でも全ページを表示します（従来どおりの挙動）。
+
+より細かい制御が必要な場合は、`store` を使わない純粋関数
+`OCWhatsNew.unseenItems(in:lastSeenVersion:showOnFirstLaunch:)` や
+`OCWhatsNew.latestVersion(in:)` を使って呼び出し側で組み立てることもできます。
 
 ```swift
+// 例: 自前のフラグで初回判定して既読化する
 if isNewUser {
     store.lastSeenVersion = OCWhatsNew.latestVersion(in: MyAppWhatsNewCatalog.allItems)
 }
