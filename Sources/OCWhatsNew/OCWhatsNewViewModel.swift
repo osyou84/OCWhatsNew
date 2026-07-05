@@ -55,7 +55,11 @@ final class OCWhatsNewViewModel: ObservableObject {
                 toggle.set(value)
             }
         }
-        store.lastSeenVersion = OCWhatsNew.latestVersion(in: items)
+        // items が空のときは latestVersion が nil になり既読が消える（＝毎回再表示）ため、
+        // 既読バージョンは更新できるとき（＝最新版が求まるとき）だけ書き換える
+        if let latest = OCWhatsNew.latestVersion(in: items) {
+            store.lastSeenVersion = latest
+        }
     }
 }
 

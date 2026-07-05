@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// `OCWhatsNewView` の見た目をアプリ側からカスタマイズするためのスタイル定義。
+/// `whatsNewSheet` の見た目をアプリ側からカスタマイズするためのスタイル定義。
 /// 指定しない場合は SwiftUI 標準の Accent Color を使ったデフォルト外観になる
 public struct OCWhatsNewStyle {
     public var background: AnyShapeStyle
@@ -13,7 +13,6 @@ public struct OCWhatsNewStyle {
     public var secondaryForegroundColor: Color
     public var accentColor: Color
     public var titleFont: Font
-    public var subtitleFont: Font
     public var headlineFont: Font
     public var bodyFont: Font
     public var captionFont: Font
@@ -28,7 +27,6 @@ public struct OCWhatsNewStyle {
         secondaryForegroundColor: Color = .white.opacity(0.85),
         accentColor: Color = .accentColor,
         titleFont: Font = .title.bold(),
-        subtitleFont: Font = .subheadline,
         headlineFont: Font = .title3.bold(),
         bodyFont: Font = .body,
         captionFont: Font = .caption
@@ -38,29 +36,8 @@ public struct OCWhatsNewStyle {
         self.secondaryForegroundColor = secondaryForegroundColor
         self.accentColor = accentColor
         self.titleFont = titleFont
-        self.subtitleFont = subtitleFont
         self.headlineFont = headlineFont
         self.bodyFont = bodyFont
         self.captionFont = captionFont
-    }
-}
-
-/// `OCWhatsNewView` に表示する文言。アプリ側の `Localizable.strings` のキーをそのまま渡せる
-public struct OCWhatsNewTexts {
-    public var title: LocalizedStringKey
-    public var subtitle: LocalizedStringKey?
-    public var nextButton: LocalizedStringKey
-    public var startButton: LocalizedStringKey
-
-    public init(
-        title: LocalizedStringKey = "What's New",
-        subtitle: LocalizedStringKey? = nil,
-        nextButton: LocalizedStringKey = "Next",
-        startButton: LocalizedStringKey = "Continue"
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.nextButton = nextButton
-        self.startButton = startButton
     }
 }

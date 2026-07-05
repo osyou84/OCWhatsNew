@@ -6,9 +6,12 @@
 
 アプリのアップデート後に新機能を紹介する「What's New」画面を、少ないコードで実装するための SwiftUI 製 Swift Package です。
 
+カタログを一度登録して View にモディファイアを付けるだけで、**表示するかどうかの判定・表示タイミング・既読バージョンの永続化まで、すべてライブラリ側が自動で処理します。**
+
+- カタログ登録 + モディファイア1行で導入完了（表示判定・既読管理は自動）
 - バージョンをまたいだページ送り（TabView + ページングスタイル）
 - ページ単位のON/OFFトグル（機能フラグの初回案内などに）
-- 既読バージョンの永続化（デフォルトは UserDefaults、任意のストレージに差し替え可能）
+- インストール直後のユーザーには表示せず、次回アップデート分から案内
 - 色・フォント・文言をすべてアプリ側からカスタマイズ可能
 
 ## 動作環境
@@ -68,79 +71,71 @@ enum MyAppWhatsNewCatalog {
 }
 ```
 
-### 2. 未読ページを判定する
+### 2. 起動時にカタログを登録する
 
-`OCWhatsNew` が、バージョン文字列を数値として比較して未読ページを絞り込みます。
+アプリ起動時に一度だけ `OCWhatsNew.configure(items:)` を呼びます。
 
 ```swift
 import OCWhatsNew
 
-let store = OCUserDefaultsWhatsNewVersionStore()
-let unseenItems = OCWhatsNew.itemsToPresent(
-    in: MyAppWhatsNewCatalog.allItems,
-    store: store,
-    showOnFirstLaunch: false   // インストール直後のユーザーには表示しない（既定）
-)
+@main
+struct MyApp: App {
+    init() {
+        OCWhatsNew.configure(items: MyAppWhatsNewCatalog.allItems)
+    }
 
-if !unseenItems.isEmpty {
-    // showWhatsNew = true など、シート表示のトリガーにする
+    var body: some Scene {
+        WindowGroup {
+            HomeView()
+        }
+    }
 }
 ```
 
-#### 初回起動のユーザーへの表示
+### 3. 表示したい画面に `whatsNewSheet` を付ける
 
-`showOnFirstLaunch`（既定 `false`）で、インストール直後＝まだ一度も What's New を見せていない
-ユーザーへの表示可否を切り替えられます。
-
-- `false`: 初回起動では **何も表示せず**、その時点のカタログ最新バージョンを既読として `store` に記録します。
-  これによりインストール直後は静かにしておきつつ、次回以降のアップデートでは
-  **新しく追加された機能だけ** が表示されます。
-- `true`: 初回起動でも全ページを表示します（従来どおりの挙動）。
-
-より細かい制御が必要な場合は、`store` を使わない純粋関数
-`OCWhatsNew.unseenItems(in:lastSeenVersion:showOnFirstLaunch:)` や
-`OCWhatsNew.latestVersion(in:)` を使って呼び出し側で組み立てることもできます。
-
-```swift
-// 例: 自前のフラグで初回判定して既読化する
-if isNewUser {
-    store.lastSeenVersion = OCWhatsNew.latestVersion(in: MyAppWhatsNewCatalog.allItems)
-}
-```
-
-### 3. シートとして表示する
+これだけで、その View の表示時に未読のお知らせがあれば自動でシート表示されます。
+シートの出し分け・既読の記録はすべてライブラリが処理するため、アプリ側で `@State` や
+`.sheet` を管理する必要はありません。
 
 ```swift
 import OCWhatsNew
 
 struct HomeView: View {
-    @State private var showWhatsNew = false
-    @State private var whatsNewItems: [OCWhatsNewItem] = []
-
     var body: some View {
         Text("Home")
-            .sheet(isPresented: $showWhatsNew) {
-                OCWhatsNewView(items: whatsNewItems, isPresented: $showWhatsNew)
-            }
+            .whatsNewSheet(
+                title: "whats_new_title",       // Localizable.strings のキーをそのまま渡せる
+                nextButton: "whats_new_next",
+                startButton: "whats_new_start"
+            )
     }
 }
 ```
 
-`OCWhatsNewView` はシート確定時（最終ページで「はじめる」をタップしたタイミング）に
+シート確定時（最終ページでスタートボタンをタップしたタイミング）には
 
 1. 各ページのトグルに設定された `set` クロージャを呼んで選択内容を保存し、
-2. `store.lastSeenVersion` に `items` 内の最新バージョンを書き込みます。
+2. カタログ内の最新バージョンを既読として記録します。
 
 これにより、次回起動時は同じお知らせが再表示されません。
+
+### 表示タイミングの仕様
+
+- **初回起動（インストール直後）**: 何も表示せず、その時点のカタログ最新バージョンを既読として記録します。
+  インストール直後は静かにしておきつつ、次回以降のアップデートでは **新しく追加された機能だけ** が表示されます。
+- **アップデート後**: 既読バージョンより新しいページだけを、バージョン昇順のページ送りで表示します。
+- **未読なし**: 何も表示しません。
 
 ## カスタマイズ
 
 ### 見た目 (`OCWhatsNewStyle`)
 
 ```swift
-OCWhatsNewView(
-    items: unseenItems,
-    isPresented: $showWhatsNew,
+.whatsNewSheet(
+    title: "whats_new_title",
+    nextButton: "whats_new_next",
+    startButton: "whats_new_start",
     style: OCWhatsNewStyle(
         background: AnyShapeStyle(LinearGradient(colors: [.main, .sub], startPoint: .top, endPoint: .bottom)),
         foregroundColor: .white,
@@ -155,27 +150,10 @@ OCWhatsNewView(
 
 指定しなかったプロパティは `.accentColor` ベースの標準的な外観になります。
 
-### 文言 (`OCWhatsNewTexts`)
-
-```swift
-OCWhatsNewView(
-    items: unseenItems,
-    isPresented: $showWhatsNew,
-    texts: OCWhatsNewTexts(
-        title: "whats_new_title",
-        subtitle: "whats_new_subtitle",
-        nextButton: "whats_new_next",
-        startButton: "whats_new_start"
-    )
-)
-```
-
-`LocalizedStringKey` を受け取るため、アプリの `Localizable.strings` のキーをそのまま渡せます。
-
 ### 既読バージョンの保存先 (`OCWhatsNewVersionStoring`)
 
-既定では `OCUserDefaultsWhatsNewVersionStore`（`UserDefaults.standard` に保存）を使いますが、
-既に自前の永続化層を持っている場合はプロトコルに準拠させて差し替えられます。
+既定では `UserDefaults.standard` に保存しますが、既に自前の永続化層を持っている場合は
+プロトコルに準拠させて `configure` で差し替えられます。
 
 ```swift
 final class AppDefaultsWhatsNewVersionStore: OCWhatsNewVersionStoring {
@@ -185,7 +163,34 @@ final class AppDefaultsWhatsNewVersionStore: OCWhatsNewVersionStoring {
     }
 }
 
-OCWhatsNewView(items: unseenItems, isPresented: $showWhatsNew, store: AppDefaultsWhatsNewVersionStore())
+OCWhatsNew.configure(
+    items: MyAppWhatsNewCatalog.allItems,
+    store: AppDefaultsWhatsNewVersionStore()
+)
+```
+
+## デバッグ
+
+既読状態をリセットすると、次の表示タイミングで全ページが未読として再表示されます。
+デバッグメニューなどから呼んでください。
+
+```swift
+OCWhatsNew.resetSeenVersion()
+```
+
+## 低レベルAPI
+
+表示判定を自前で組み立てたい場合は、`store` に依存しない純粋関数も利用できます。
+
+```swift
+// カタログ内の最新バージョン
+OCWhatsNew.latestVersion(in: items)
+
+// lastSeenVersion より新しいページ（バージョン昇順）
+OCWhatsNew.unseenItems(in: items, lastSeenVersion: "1.0.0")
+
+// store の既読を踏まえた表示対象（初回起動の既読化も行う）
+OCWhatsNew.itemsToPresent(in: items, store: store, showOnFirstLaunch: false)
 ```
 
 ## バージョン比較の仕様

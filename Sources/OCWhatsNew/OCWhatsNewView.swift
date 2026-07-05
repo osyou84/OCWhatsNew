@@ -9,50 +9,97 @@
 
 import SwiftUI
 
-/// アプリ起動時などに新機能を紹介するためのシート型View。
-///
-/// 使い方の例:
-/// ```swift
-/// .sheet(isPresented: $showWhatsNew) {
-///     OCWhatsNewView(items: unseenItems, isPresented: $showWhatsNew)
-/// }
-/// ```
-///
-/// `items` に渡すページごとにトグル（機能のON/OFF）を設定でき、シート確定時に
-/// `OCWhatsNewToggle.set` が呼ばれる。また確定と同時に `store`（既定は
-/// `OCUserDefaultsWhatsNewVersionStore`）へ `items` 内の最新バージョンが既読として保存される
-public struct OCWhatsNewView: View {
-    @StateObject private var viewModel = OCWhatsNewViewModel()
-    private let items: [OCWhatsNewItem]
-    @Binding var isPresented: Bool
-    private let store: OCWhatsNewVersionStoring
-    private let texts: OCWhatsNewTexts
-    private let style: OCWhatsNewStyle
+// MARK: - whatsNewSheet モディファイア
 
-    public init(
-        items: [OCWhatsNewItem],
-        isPresented: Binding<Bool>,
-        store: OCWhatsNewVersionStoring = OCUserDefaultsWhatsNewVersionStore(),
-        texts: OCWhatsNewTexts = OCWhatsNewTexts(),
+public extension View {
+    /// 未読の What's New があれば、この View の表示時に自動でシート表示する。
+    ///
+    /// 事前に `OCWhatsNew.configure(items:)` でカタログを登録しておくこと。
+    /// 表示判定・初回起動の既読化・確定時の既読記録はすべてライブラリ側が処理する。
+    ///
+    /// ```swift
+    /// MainView()
+    ///     .whatsNewSheet(
+    ///         title: "WhatsNew Title",
+    ///         nextButton: "WhatsNew Next",
+    ///         startButton: "WhatsNew Start"
+    ///     )
+    /// ```
+    func whatsNewSheet(
+        title: LocalizedStringKey = "What's New",
+        nextButton: LocalizedStringKey = "Next",
+        startButton: LocalizedStringKey = "Continue",
         style: OCWhatsNewStyle = OCWhatsNewStyle()
-    ) {
-        self.items = items
-        _isPresented = isPresented
-        self.store = store
-        self.texts = texts
-        self.style = style
+    ) -> some View {
+        modifier(OCWhatsNewSheetModifier(
+            title: title,
+            nextButton: nextButton,
+            startButton: startButton,
+            style: style
+        ))
     }
+}
 
-    public var body: some View {
+/// `.sheet(item:)` でデータとともに原子的に提示するためのラッパー。
+/// isPresented ＋別 State だと提示時に空配列を読み取ることがあるため item 方式にする
+private struct OCWhatsNewPresentation: Identifiable {
+    let id = UUID()
+    let items: [OCWhatsNewItem]
+}
+
+private struct OCWhatsNewSheetModifier: ViewModifier {
+    let title: LocalizedStringKey
+    let nextButton: LocalizedStringKey
+    let startButton: LocalizedStringKey
+    let style: OCWhatsNewStyle
+
+    @State private var presentation: OCWhatsNewPresentation?
+    @State private var didCheck = false
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                // onAppear は再表示などで複数回呼ばれうるため、判定は一度だけ行う
+                guard !didCheck else { return }
+                didCheck = true
+                let items = OCWhatsNew.takeItemsToPresent()
+                guard !items.isEmpty else { return }
+                presentation = OCWhatsNewPresentation(items: items)
+            }
+            .sheet(item: $presentation) { presentation in
+                OCWhatsNewView(
+                    items: presentation.items,
+                    title: title,
+                    nextButton: nextButton,
+                    startButton: startButton,
+                    style: style,
+                    dismiss: { self.presentation = nil }
+                )
+            }
+    }
+}
+
+// MARK: - OCWhatsNewView
+
+/// 新機能を紹介するシート本体。`whatsNewSheet` モディファイア経由でのみ生成される。
+/// 各ページのトグル選択と既読バージョンは、最終ページのボタン確定時に保存される
+struct OCWhatsNewView: View {
+    @StateObject private var viewModel = OCWhatsNewViewModel()
+    let items: [OCWhatsNewItem]
+    let title: LocalizedStringKey
+    let nextButton: LocalizedStringKey
+    let startButton: LocalizedStringKey
+    let style: OCWhatsNewStyle
+    let dismiss: () -> Void
+
+    var body: some View {
         ZStack {
             Rectangle()
                 .fill(style.background)
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
+            VStack(spacing: 40) {
                 titleView
-                    .padding(.top, 40)
-                    .padding(.bottom, 12)
 
                 TabView(selection: $viewModel.currentIndex) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -64,35 +111,27 @@ public struct OCWhatsNewView: View {
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
 
                 bottomButton
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 16)
+                    .frame(maxWidth: 600)
             }
+            .padding(.vertical, 16)
         }
         .interactiveDismissDisabled()
         .onAppear { viewModel.prepare(items: items) }
     }
 
     private var titleView: some View {
-        VStack(spacing: 8) {
-            Text(texts.title)
-                .font(style.titleFont)
-                .foregroundStyle(style.foregroundColor)
-
-            if let subtitle = texts.subtitle {
-                Text(subtitle)
-                    .font(style.subtitleFont)
-                    .foregroundStyle(style.secondaryForegroundColor)
-            }
-        }
+        Text(title)
+            .font(style.titleFont)
+            .foregroundStyle(style.foregroundColor)
     }
 
     private func pageView(_ item: OCWhatsNewItem) -> some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 Image(systemName: item.iconSystemName)
                     .font(.system(size: 56))
                     .foregroundStyle(style.foregroundColor)
-                    .padding(.top, 8)
 
                 Text(LocalizedStringKey(item.title))
                     .font(style.headlineFont)
@@ -128,21 +167,21 @@ public struct OCWhatsNewView: View {
                     )
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
+            .padding(.horizontal)
+            .frame(maxWidth: 600)
         }
     }
 
     private var bottomButton: some View {
         Button {
             if viewModel.isLastPage(pageCount: items.count) {
-                viewModel.commit(items: items, store: store)
-                isPresented = false
+                viewModel.commit(items: items, store: OCWhatsNew.store)
+                dismiss()
             } else {
                 withAnimation { viewModel.advance(pageCount: items.count) }
             }
         } label: {
-            Text(viewModel.isLastPage(pageCount: items.count) ? texts.startButton : texts.nextButton)
+            Text(viewModel.isLastPage(pageCount: items.count) ? startButton : nextButton)
                 .font(style.headlineFont)
                 .foregroundStyle(style.accentColor)
                 .frame(maxWidth: .infinity)
@@ -184,7 +223,6 @@ private final class OCWhatsNewPreviewToggleBox: @unchecked Sendable {
 }
 
 private struct OCWhatsNewView_Preview: View {
-    @State private var isPresented = true
     private let toggleBox = OCWhatsNewPreviewToggleBox()
 
     var body: some View {
@@ -203,7 +241,11 @@ private struct OCWhatsNewView_Preview: View {
                     )
                 )
             ],
-            isPresented: $isPresented
+            title: "What's New",
+            nextButton: "Next",
+            startButton: "Continue",
+            style: OCWhatsNewStyle(),
+            dismiss: {}
         )
     }
 }

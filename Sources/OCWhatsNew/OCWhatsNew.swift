@@ -5,20 +5,66 @@
 
 import Foundation
 
-/// `[OCWhatsNewItem]` を対象にバージョン比較を行うユーティリティ。
+/// What's New の表示判定と既読管理を担うエントリポイント。
 ///
-/// アプリ側は自身のカタログ（`[OCWhatsNewItem]`）と、既読バージョンを保持する
-/// `OCWhatsNewVersionStoring` を組み合わせて、次のように使う。
+/// アプリ側はカタログを一度登録し、表示したい画面に `whatsNewSheet` モディファイアを
+/// 付けるだけでよい。既読バージョンの保存・未読判定・表示タイミングはライブラリが処理する。
 ///
 /// ```swift
-/// let store = OCUserDefaultsWhatsNewVersionStore()
-/// // 初回起動（インストール直後）のユーザーには表示しない
-/// let unseen = OCWhatsNew.itemsToPresent(in: myAppWhatsNewItems, store: store, showOnFirstLaunch: false)
-/// if !unseen.isEmpty {
-///     // OCWhatsNewView を表示する
-/// }
+/// // 起動時に一度（App の init など）
+/// OCWhatsNew.configure(items: myAppWhatsNewItems)
+///
+/// // 表示したい画面に付ける
+/// MainView()
+///     .whatsNewSheet(title: "What's New")
 /// ```
 public enum OCWhatsNew {
+    // MARK: - 登録済みカタログ（configure で設定）
+
+    /// アプリ側から登録された What's New カタログ
+    @MainActor private(set) static var registeredItems: [OCWhatsNewItem] = []
+    /// 既読バージョンの保存先。既定は UserDefaults
+    @MainActor private(set) static var store: OCWhatsNewVersionStoring = OCUserDefaultsWhatsNewVersionStore()
+
+    /// カタログを登録する。アプリ起動時に一度呼ぶ。
+    ///
+    /// - Parameters:
+    ///   - items: What's New カタログ（全バージョン分）
+    ///   - store: 既読バージョンの保存先。通常は既定のままでよい
+    @MainActor
+    public static func configure(
+        items: [OCWhatsNewItem],
+        store: OCWhatsNewVersionStoring = OCUserDefaultsWhatsNewVersionStore()
+    ) {
+        registeredItems = items
+        self.store = store
+    }
+
+    /// 既読バージョンをリセットする（デバッグ用）。次回表示タイミングで全件が未読になる。
+    /// `nil` は「初回起動」を意味し黙って既読化されてしまうため、全件より古い "0.0.0" を記録する
+    @MainActor
+    public static func resetSeenVersion() {
+        store.lastSeenVersion = "0.0.0"
+    }
+
+    /// いま表示すべき未読ページを登録済みカタログから返す（`whatsNewSheet` の内部用）。
+    /// 初回起動（既読が未記録）の場合は何も表示せず、最新バージョンを既読として記録する
+    @MainActor
+    static func takeItemsToPresent() -> [OCWhatsNewItem] {
+        itemsToPresent(in: registeredItems, store: store, showOnFirstLaunch: false)
+    }
+
+    /// 表示済みページを既読として記録する（シート確定時の内部用）。
+    /// items が空のときは latestVersion が nil になり既読が消えてしまうため、書き換えない
+    @MainActor
+    static func markAsSeen(_ items: [OCWhatsNewItem]) {
+        if let latest = latestVersion(in: items) {
+            store.lastSeenVersion = latest
+        }
+    }
+
+    // MARK: - バージョン比較ユーティリティ
+
     /// カタログ内の最新バージョンを返す（バージョン文字列を数値として比較する）
     public static func latestVersion(in items: [OCWhatsNewItem]) -> String? {
         items

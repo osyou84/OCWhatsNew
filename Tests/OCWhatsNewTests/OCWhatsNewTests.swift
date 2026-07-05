@@ -108,6 +108,64 @@ struct OCWhatsNewItemsToPresentTests {
     }
 }
 
+// MARK: - OCWhatsNew.configure（登録カタログ）
+
+/// テスト専用のインメモリ store
+private final class InMemoryVersionStore: OCWhatsNewVersionStoring, @unchecked Sendable {
+    var lastSeenVersion: String?
+}
+
+// 登録カタログは共有の static 状態のため、並列実行を避けて直列で検証する
+@MainActor
+@Suite("OCWhatsNew.configure", .serialized)
+struct OCWhatsNewRegistryTests {
+    private func makeItem(_ version: String) -> OCWhatsNewItem {
+        OCWhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail")
+    }
+
+    @Test("初回起動では何も表示せず、最新バージョンを既読として記録する")
+    func firstLaunchBaselines() {
+        let store = InMemoryVersionStore()
+        OCWhatsNew.configure(items: ["1.0.0", "1.1.0"].map(makeItem), store: store)
+        #expect(OCWhatsNew.takeItemsToPresent().isEmpty)
+        #expect(store.lastSeenVersion == "1.1.0")
+    }
+
+    @Test("既読より新しいページだけが表示対象になる")
+    func returnsOnlyUnseen() {
+        let store = InMemoryVersionStore()
+        store.lastSeenVersion = "1.0.0"
+        OCWhatsNew.configure(items: ["1.0.0", "1.1.0"].map(makeItem), store: store)
+        #expect(OCWhatsNew.takeItemsToPresent().map(\.version) == ["1.1.0"])
+    }
+
+    @Test("markAsSeen は表示済みページの最新バージョンを既読として記録する")
+    func markAsSeenRecordsLatest() {
+        let store = InMemoryVersionStore()
+        OCWhatsNew.configure(items: [], store: store)
+        OCWhatsNew.markAsSeen(["1.0.0", "1.2.0"].map(makeItem))
+        #expect(store.lastSeenVersion == "1.2.0")
+    }
+
+    @Test("markAsSeen は空配列では既読バージョンを消さない")
+    func markAsSeenIgnoresEmptyItems() {
+        let store = InMemoryVersionStore()
+        store.lastSeenVersion = "1.1.0"
+        OCWhatsNew.configure(items: [], store: store)
+        OCWhatsNew.markAsSeen([])
+        #expect(store.lastSeenVersion == "1.1.0")
+    }
+
+    @Test("resetSeenVersion 後は初回起動扱いにならず全件が未読になる")
+    func resetMakesAllUnseen() {
+        let store = InMemoryVersionStore()
+        store.lastSeenVersion = "1.1.0"
+        OCWhatsNew.configure(items: ["1.0.0", "1.1.0"].map(makeItem), store: store)
+        OCWhatsNew.resetSeenVersion()
+        #expect(OCWhatsNew.takeItemsToPresent().map(\.version) == ["1.0.0", "1.1.0"])
+    }
+}
+
 // MARK: - OCUserDefaultsWhatsNewVersionStore
 
 @Suite("OCUserDefaultsWhatsNewVersionStore")
