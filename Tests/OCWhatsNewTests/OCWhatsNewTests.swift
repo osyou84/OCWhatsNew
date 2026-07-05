@@ -6,8 +6,8 @@ import Testing
 
 @Suite("OCWhatsNew")
 struct OCWhatsNewTests {
-    private func makeItem(_ version: String) -> WhatsNewItem {
-        WhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail")
+    private func makeItem(_ version: String) -> OCWhatsNewItem {
+        OCWhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail")
     }
 
     @Test("latestVersion はカタログ内で最大のバージョンを返す")
@@ -50,14 +50,14 @@ struct OCWhatsNewTests {
     }
 }
 
-// MARK: - UserDefaultsWhatsNewVersionStore
+// MARK: - OCUserDefaultsWhatsNewVersionStore
 
-@Suite("UserDefaultsWhatsNewVersionStore")
+@Suite("OCUserDefaultsWhatsNewVersionStore")
 struct UserDefaultsWhatsNewVersionStoreTests {
-    private func makeStore(suiteName: String) -> UserDefaultsWhatsNewVersionStore {
+    private func makeStore(suiteName: String) -> OCUserDefaultsWhatsNewVersionStore {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        return UserDefaultsWhatsNewVersionStore(userDefaults: defaults, key: "test.lastSeenVersion")
+        return OCUserDefaultsWhatsNewVersionStore(userDefaults: defaults, key: "test.lastSeenVersion")
     }
 
     @Test("初期状態では lastSeenVersion は nil")
@@ -82,8 +82,8 @@ struct UserDefaultsWhatsNewVersionStoreTests {
     }
 }
 
-// MARK: - WhatsNewViewModel
-// WhatsNewViewModel は WhatsNewView (ページ送り TabView) 専用の内部型で、
+// MARK: - OCWhatsNewViewModel
+// OCWhatsNewViewModel は OCWhatsNewView (ページ送り TabView) 専用の内部型で、
 // この UI は AppKit (macOS) をサポートしないため、対応プラットフォームでのみテストする
 
 #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
@@ -94,16 +94,16 @@ private final class ResultBox<Value>: @unchecked Sendable {
 }
 
 @MainActor
-@Suite("WhatsNewViewModel")
-struct WhatsNewViewModelTests {
-    private func makeItem(version: String, toggle: WhatsNewToggle? = nil) -> WhatsNewItem {
-        WhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail", toggle: toggle)
+@Suite("OCWhatsNewViewModel")
+struct OCWhatsNewViewModelTests {
+    private func makeItem(version: String, toggle: OCWhatsNewToggle? = nil) -> OCWhatsNewItem {
+        OCWhatsNewItem(version: version, iconSystemName: "star", title: "title", detail: "detail", toggle: toggle)
     }
 
     @Test("isLastPage は最後のページで true になる")
     func isLastPage() {
         let items = ["1.0.0", "1.1.0"].map { makeItem(version: $0) }
-        let viewModel = WhatsNewViewModel(items: items)
+        let viewModel = OCWhatsNewViewModel(items: items)
         #expect(viewModel.isLastPage == false)
         viewModel.advance()
         #expect(viewModel.isLastPage == true)
@@ -112,28 +112,28 @@ struct WhatsNewViewModelTests {
     @Test("advance は最終ページを超えて進まない")
     func advanceStopsAtLastPage() {
         let items = ["1.0.0"].map { makeItem(version: $0) }
-        let viewModel = WhatsNewViewModel(items: items)
+        let viewModel = OCWhatsNewViewModel(items: items)
         viewModel.advance()
         #expect(viewModel.currentIndex == 0)
     }
 
     @Test("初期化時に各トグルの現在値を取得する")
     func initializesToggleStatesFromGetter() {
-        let toggle = WhatsNewToggle(title: "toggle", get: { true }, set: { _ in })
+        let toggle = OCWhatsNewToggle(title: "toggle", get: { true }, set: { _ in })
         let item = makeItem(version: "1.0.0", toggle: toggle)
-        let viewModel = WhatsNewViewModel(items: [item])
+        let viewModel = OCWhatsNewViewModel(items: [item])
         #expect(viewModel.toggleBinding(for: item.id).wrappedValue == true)
     }
 
     @Test("commit はトグルの値を保存し、最新バージョンを既読にする")
     func commitPersistsToggleAndVersion() {
         let savedToggleValue = ResultBox<Bool>()
-        let toggle = WhatsNewToggle(title: "toggle", get: { false }, set: { savedToggleValue.value = $0 })
+        let toggle = OCWhatsNewToggle(title: "toggle", get: { false }, set: { savedToggleValue.value = $0 })
         let item = makeItem(version: "1.2.0", toggle: toggle)
-        let viewModel = WhatsNewViewModel(items: [item])
+        let viewModel = OCWhatsNewViewModel(items: [item])
         viewModel.toggleBinding(for: item.id).wrappedValue = true
 
-        let store = UserDefaultsWhatsNewVersionStore(
+        let store = OCUserDefaultsWhatsNewVersionStore(
             userDefaults: UserDefaults(suiteName: "OCWhatsNewTests.commit")!,
             key: "test.commit.lastSeenVersion"
         )

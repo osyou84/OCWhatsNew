@@ -1,5 +1,5 @@
 //
-//  WhatsNewItem.swift
+//  OCWhatsNewItem.swift
 //  OCWhatsNew
 //
 
@@ -9,7 +9,7 @@ import Foundation
 ///
 /// `title` / `detail` / `note` は `LocalizedStringKey` に変換して表示されるため、
 /// アプリ側の `Localizable.strings` に定義したキーをそのまま渡せる。
-public struct WhatsNewItem: Identifiable, Sendable {
+public struct OCWhatsNewItem: Identifiable, Sendable {
     public let id: UUID
     /// このページを導入したアプリバージョン（例: "2.8.0"）。数値として比較されるため "1.2.0" のような形式にする
     public let version: String
@@ -22,7 +22,7 @@ public struct WhatsNewItem: Identifiable, Sendable {
     /// 補足説明。本文より控えめに表示する。ローカライズキー、または表示したい文字列そのもの
     public let note: String?
     /// 機能のON/OFFをその場で選ばせたい場合に指定する
-    public let toggle: WhatsNewToggle?
+    public let toggle: OCWhatsNewToggle?
 
     public init(
         id: UUID = UUID(),
@@ -31,7 +31,7 @@ public struct WhatsNewItem: Identifiable, Sendable {
         title: String,
         detail: String,
         note: String? = nil,
-        toggle: WhatsNewToggle? = nil
+        toggle: OCWhatsNewToggle? = nil
     ) {
         self.id = id
         self.version = version
@@ -44,7 +44,7 @@ public struct WhatsNewItem: Identifiable, Sendable {
 }
 
 /// What's New ページに紐づく設定トグル。シート確定時に `set` が呼ばれる
-public struct WhatsNewToggle: Sendable {
+public struct OCWhatsNewToggle: Sendable {
     /// ローカライズキー、または表示したい文字列そのもの
     public let title: String
     public let get: @Sendable () -> Bool

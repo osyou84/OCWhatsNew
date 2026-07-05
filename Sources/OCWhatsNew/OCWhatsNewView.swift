@@ -1,5 +1,5 @@
 //
-//  WhatsNewView.swift
+//  OCWhatsNewView.swift
 //  OCWhatsNew
 //
 
@@ -14,28 +14,28 @@ import SwiftUI
 /// 使い方の例:
 /// ```swift
 /// .sheet(isPresented: $showWhatsNew) {
-///     WhatsNewView(items: unseenItems, isPresented: $showWhatsNew)
+///     OCWhatsNewView(items: unseenItems, isPresented: $showWhatsNew)
 /// }
 /// ```
 ///
 /// `items` に渡すページごとにトグル（機能のON/OFF）を設定でき、シート確定時に
-/// `WhatsNewToggle.set` が呼ばれる。また確定と同時に `store`（既定は
-/// `UserDefaultsWhatsNewVersionStore`）へ `items` 内の最新バージョンが既読として保存される
-public struct WhatsNewView: View {
-    @StateObject private var viewModel: WhatsNewViewModel
+/// `OCWhatsNewToggle.set` が呼ばれる。また確定と同時に `store`（既定は
+/// `OCUserDefaultsWhatsNewVersionStore`）へ `items` 内の最新バージョンが既読として保存される
+public struct OCWhatsNewView: View {
+    @StateObject private var viewModel: OCWhatsNewViewModel
     @Binding var isPresented: Bool
-    private let store: WhatsNewVersionStoring
-    private let texts: WhatsNewTexts
-    private let style: WhatsNewStyle
+    private let store: OCWhatsNewVersionStoring
+    private let texts: OCWhatsNewTexts
+    private let style: OCWhatsNewStyle
 
     public init(
-        items: [WhatsNewItem],
+        items: [OCWhatsNewItem],
         isPresented: Binding<Bool>,
-        store: WhatsNewVersionStoring = UserDefaultsWhatsNewVersionStore(),
-        texts: WhatsNewTexts = WhatsNewTexts(),
-        style: WhatsNewStyle = WhatsNewStyle()
+        store: OCWhatsNewVersionStoring = OCUserDefaultsWhatsNewVersionStore(),
+        texts: OCWhatsNewTexts = OCWhatsNewTexts(),
+        style: OCWhatsNewStyle = OCWhatsNewStyle()
     ) {
-        _viewModel = StateObject(wrappedValue: WhatsNewViewModel(items: items))
+        _viewModel = StateObject(wrappedValue: OCWhatsNewViewModel(items: items))
         _isPresented = isPresented
         self.store = store
         self.texts = texts
@@ -84,7 +84,7 @@ public struct WhatsNewView: View {
         }
     }
 
-    private func pageView(_ item: WhatsNewItem) -> some View {
+    private func pageView(_ item: OCWhatsNewItem) -> some View {
         ScrollView {
             VStack(spacing: 24) {
                 Image(systemName: item.iconSystemName)
@@ -117,7 +117,7 @@ public struct WhatsNewView: View {
                             .font(style.bodyFont)
                             .foregroundStyle(style.foregroundColor)
                     }
-                    .toggleStyle(WhatsNewToggleStyle(accentColor: style.accentColor, thumbColor: style.foregroundColor))
+                    .toggleStyle(OCWhatsNewToggleStyle(accentColor: style.accentColor, thumbColor: style.foregroundColor))
                     .padding(16)
                     .background(style.foregroundColor.opacity(0.2), in: RoundedRectangle(cornerRadius: 16))
                     .overlay(
@@ -150,7 +150,7 @@ public struct WhatsNewView: View {
     }
 }
 
-private struct WhatsNewToggleStyle: ToggleStyle {
+private struct OCWhatsNewToggleStyle: ToggleStyle {
     let accentColor: Color
     let thumbColor: Color
 
@@ -177,24 +177,24 @@ private struct WhatsNewToggleStyle: ToggleStyle {
 
 #if DEBUG
 /// プレビュー専用。トグルの状態を `@Sendable` クロージャ越しに保持するための箱
-private final class WhatsNewPreviewToggleBox: @unchecked Sendable {
+private final class OCWhatsNewPreviewToggleBox: @unchecked Sendable {
     var isEnabled = true
 }
 
-private struct WhatsNewView_Preview: View {
+private struct OCWhatsNewView_Preview: View {
     @State private var isPresented = true
-    private let toggleBox = WhatsNewPreviewToggleBox()
+    private let toggleBox = OCWhatsNewPreviewToggleBox()
 
     var body: some View {
-        WhatsNewView(
+        OCWhatsNewView(
             items: [
-                WhatsNewItem(
+                OCWhatsNewItem(
                     version: "1.1.0",
                     iconSystemName: "flag.checkered",
                     title: "New Feature",
                     detail: "Describe the new feature here.",
                     note: "Optional supplementary note.",
-                    toggle: WhatsNewToggle(
+                    toggle: OCWhatsNewToggle(
                         title: "Enable this feature",
                         get: { [toggleBox] in toggleBox.isEnabled },
                         set: { [toggleBox] in toggleBox.isEnabled = $0 }
@@ -207,7 +207,7 @@ private struct WhatsNewView_Preview: View {
 }
 
 #Preview {
-    WhatsNewView_Preview()
+    OCWhatsNewView_Preview()
 }
 #endif
 

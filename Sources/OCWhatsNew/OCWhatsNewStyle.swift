@@ -1,13 +1,13 @@
 //
-//  WhatsNewStyle.swift
+//  OCWhatsNewStyle.swift
 //  OCWhatsNew
 //
 
 import SwiftUI
 
-/// `WhatsNewView` の見た目をアプリ側からカスタマイズするためのスタイル定義。
+/// `OCWhatsNewView` の見た目をアプリ側からカスタマイズするためのスタイル定義。
 /// 指定しない場合は SwiftUI 標準の Accent Color を使ったデフォルト外観になる
-public struct WhatsNewStyle {
+public struct OCWhatsNewStyle {
     public var background: AnyShapeStyle
     public var foregroundColor: Color
     public var secondaryForegroundColor: Color
@@ -45,8 +45,8 @@ public struct WhatsNewStyle {
     }
 }
 
-/// `WhatsNewView` に表示する文言。アプリ側の `Localizable.strings` のキーをそのまま渡せる
-public struct WhatsNewTexts {
+/// `OCWhatsNewView` に表示する文言。アプリ側の `Localizable.strings` のキーをそのまま渡せる
+public struct OCWhatsNewTexts {
     public var title: LocalizedStringKey
     public var subtitle: LocalizedStringKey?
     public var nextButton: LocalizedStringKey
