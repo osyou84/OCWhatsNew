@@ -106,6 +106,26 @@ struct OCWhatsNewItemsToPresentTests {
         // 表示する場合はここでは既読化しない（確定は OCWhatsNewViewModel.commit が担う）
         #expect(store.lastSeenVersion == nil)
     }
+
+    @Test("既読が未記録でも treatFirstLaunchAsUpdate が true なら全件をバージョン昇順で表示し、既読化しない")
+    func treatFirstLaunchAsUpdateReturnsAll() {
+        let store = makeStore(suiteName: "OCWhatsNewTests.itemsToPresent.updateUser")
+        let items = ["1.1.0", "1.0.0"].map(makeItem)
+        let toPresent = OCWhatsNew.itemsToPresent(in: items, store: store, treatFirstLaunchAsUpdate: true)
+        #expect(toPresent.map(\.version) == ["1.0.0", "1.1.0"])
+        // 既読化はシート確定時（markAsSeen / commit）に委ねる。
+        // ここで既読化すると、シートを閉じずにアプリを終了した場合に二度と表示されなくなる
+        #expect(store.lastSeenVersion == nil)
+    }
+
+    @Test("既読が記録済みなら treatFirstLaunchAsUpdate は影響しない")
+    func treatFirstLaunchAsUpdateIgnoredWhenSeen() {
+        let store = makeStore(suiteName: "OCWhatsNewTests.itemsToPresent.updateUserSeen")
+        store.lastSeenVersion = "1.1.0"
+        let items = ["1.0.0", "1.1.0"].map(makeItem)
+        let toPresent = OCWhatsNew.itemsToPresent(in: items, store: store, treatFirstLaunchAsUpdate: true)
+        #expect(toPresent.isEmpty)
+    }
 }
 
 // MARK: - OCWhatsNew.configure（登録カタログ）
@@ -154,6 +174,18 @@ struct OCWhatsNewRegistryTests {
         OCWhatsNew.configure(items: [], store: store)
         OCWhatsNew.markAsSeen([])
         #expect(store.lastSeenVersion == "1.1.0")
+    }
+
+    @Test("configure で treatFirstLaunchAsUpdate を渡すと、既読未記録でも全件が表示対象になる")
+    func configureTreatFirstLaunchAsUpdate() {
+        let store = InMemoryVersionStore()
+        OCWhatsNew.configure(
+            items: ["1.0.0", "1.1.0"].map(makeItem),
+            store: store,
+            treatFirstLaunchAsUpdate: true
+        )
+        #expect(OCWhatsNew.takeItemsToPresent().map(\.version) == ["1.0.0", "1.1.0"])
+        #expect(store.lastSeenVersion == nil)
     }
 
     @Test("resetSeenVersion 後は初回起動扱いにならず全件が未読になる")

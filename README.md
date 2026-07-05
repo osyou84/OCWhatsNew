@@ -127,6 +127,25 @@ struct HomeView: View {
 - **アップデート後**: 既読バージョンより新しいページだけを、バージョン昇順のページ送りで表示します。
 - **未読なし**: 何も表示しません。
 
+### ライブラリを初めて組み込むバージョンでの注意（`treatFirstLaunchAsUpdate`）
+
+ライブラリを初めて組み込んだバージョンでは、**アップデートしてきた既存ユーザーにも既読記録がない**ため、
+新規インストールと区別できず全員が「初回起動」として黙って既読化されてしまいます（＝誰にも表示されない）。
+
+旧バージョンが書き込んでいた UserDefaults キーの有無など、アプリ側の手がかりで既存ユーザーを
+判定できる場合は、`configure` に `treatFirstLaunchAsUpdate` を渡してください。
+`true` のときは既読未記録でもカタログ全件が未読として表示されます。
+
+```swift
+// 旧バージョンが起動時に必ず書き込んでいたキーの有無で既存ユーザーを判定する例
+OCWhatsNew.configure(
+    items: MyAppWhatsNewCatalog.allItems,
+    treatFirstLaunchAsUpdate: UserDefaults.standard.object(forKey: "appLaunchCount") != nil
+)
+```
+
+2 回目以降のリリース（既読記録が存在するユーザー）ではこのフラグは影響しないため、付けたままで問題ありません。
+
 ## カスタマイズ
 
 ### 見た目 (`OCWhatsNewStyle`)
@@ -191,6 +210,9 @@ OCWhatsNew.unseenItems(in: items, lastSeenVersion: "1.0.0")
 
 // store の既読を踏まえた表示対象（初回起動の既読化も行う）
 OCWhatsNew.itemsToPresent(in: items, store: store, showOnFirstLaunch: false)
+
+// 既読未記録を「導入前バージョンからのアップデート」として扱う場合
+OCWhatsNew.itemsToPresent(in: items, store: store, treatFirstLaunchAsUpdate: true)
 ```
 
 ## バージョン比較の仕様
