@@ -93,29 +93,25 @@ struct OCWhatsNewView: View {
     let dismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(style.background)
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            titleView
+                .padding(.vertical, 20)
 
-            VStack(spacing: 40) {
-                titleView
-
-                TabView(selection: $viewModel.currentIndex) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        pageView(item)
-                            .tag(index)
-                    }
+            TabView(selection: $viewModel.currentIndex) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    pageView(item)
+                        .tag(index)
                 }
-                .tabViewStyle(.page(indexDisplayMode: items.count > 1 ? .always : .never))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-                bottomButton
-                    .padding(.horizontal, 16)
-                    .frame(maxWidth: 600)
             }
-            .padding(.vertical, 16)
+            .tabViewStyle(.page(indexDisplayMode: items.count > 1 ? .always : .never))
+            .indexViewStyle(.page(backgroundDisplayMode: .automatic))
+
+            bottomButton
+                .padding(.horizontal, 16)
+                .frame(maxWidth: 600)
         }
+        .padding(.vertical, 16)
+        .background(style.background)
         .interactiveDismissDisabled()
         .onAppear { viewModel.prepare(items: items) }
     }
@@ -169,6 +165,7 @@ struct OCWhatsNewView: View {
             }
             .padding(.horizontal)
             .frame(maxWidth: 600)
+            .padding(.top, 40)
         }
     }
 
@@ -222,36 +219,44 @@ private final class OCWhatsNewPreviewToggleBox: @unchecked Sendable {
     var isEnabled = true
 }
 
-private struct OCWhatsNewView_Preview: View {
-    private let toggleBox = OCWhatsNewPreviewToggleBox()
-
-    var body: some View {
-        OCWhatsNewView(
-            items: [
-                OCWhatsNewItem(
-                    version: "1.1.0",
-                    iconSystemName: "flag.checkered",
-                    title: "New Feature",
-                    detail: "Describe the new feature here.",
-                    note: "Optional supplementary note.",
-                    toggle: OCWhatsNewToggle(
-                        title: "Enable this feature",
-                        get: { [toggleBox] in toggleBox.isEnabled },
-                        set: { [toggleBox] in toggleBox.isEnabled = $0 }
-                    )
-                )
-            ],
-            title: "What's New",
-            nextButton: "Next",
-            startButton: "Continue",
-            style: OCWhatsNewStyle(),
-            dismiss: {}
-        )
-    }
-}
-
 #Preview {
-    OCWhatsNewView_Preview()
+    let toggleBox = OCWhatsNewPreviewToggleBox()
+    return Text("")
+        .sheet(isPresented: .constant(true)) {
+            OCWhatsNewView(
+                items: [
+                    OCWhatsNewItem(
+                        version: "1.1.0",
+                        iconSystemName: "flag.checkered",
+                        title: "New Feature",
+                        detail: "Describe the new feature here.",
+                        note: "Optional supplementary note.",
+                        toggle: OCWhatsNewToggle(
+                            title: "Enable this feature",
+                            get: { [toggleBox] in toggleBox.isEnabled },
+                            set: { [toggleBox] in toggleBox.isEnabled = $0 }
+                        )
+                    ),
+                    OCWhatsNewItem(
+                        version: "1.1.0",
+                        iconSystemName: "flag.checkered",
+                        title: "New Feature",
+                        detail: "Describe the new feature here.",
+                        note: "Optional supplementary note.",
+                        toggle: OCWhatsNewToggle(
+                            title: "Enable this feature",
+                            get: { [toggleBox] in toggleBox.isEnabled },
+                            set: { [toggleBox] in toggleBox.isEnabled = $0 }
+                        )
+                    )
+                ],
+                title: "What's New",
+                nextButton: "Next",
+                startButton: "Continue",
+                style: OCWhatsNewStyle(),
+                dismiss: {}
+            )
+        }
 }
 #endif
 
